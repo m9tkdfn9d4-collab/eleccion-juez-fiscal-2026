@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Elección Juez / Fiscal</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--ink:#f1f5f9;--muted:#94a3b8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.screen{display:none;padding:24px;max-width:600px;margin:0 auto}
+.screen.on{display:block}
+h1{font-size:26px;margin:0 0 8px}
+p{color:#94a3b8;margin:0 0 20px}
+.btn{display:block;width:100%;padding:16px;border:0;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:12px}
+.btn-juez{background:#2563eb;color:#fff}
+.btn-fiscal{background:#f59e0b;color:#000}
+.btn-see{background:#334155;color:#fff}
+.btn-back{background:transparent;color:#94a3b8;border:1px solid #334155}
+.list{max-height:400px;overflow-y:auto}
+.person{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#1e293b;border-radius:10px;margin-bottom:8px;cursor:pointer}
+.person:hover{background:#334155}
+.person .name{font-weight:500}
+.person .trib{color:#64748b;font-size:13px}
+.summary{display:flex;gap:12px;margin:16px 0;flex-wrap:wrap}
+.summary div{padding:10px 16px;border-radius:10px;font-weight:700}
+.juez-box{background:#2563eb;color:#fff}
+.fiscal-box{background:#f59e0b;color:#000}
+.pend-box{background:#475569;color:#fff}
+table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:12px;overflow:hidden;margin-top:16px}
+th,td{padding:10px 12px;text-align:left;font-size:14px}
+th{background:#334155;font-size:11px;text-transform:uppercase;color:#94a3b8}
+tr.juez{background:#1e3a5f}
+tr.fiscal{background:#3d2e0f}
+.badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.badge.juez{background:#3b82f6;color:#fff}
+.badge.fiscal{background:#fbbf24;color:#000}
+</style>
+</head>
+<body>
+<div id="welcome" class="screen on">
+  <h1>Elección de carrera</h1>
+  <p>Convocatoria 2025 · 3.er ejercicio</p>
+  <button class="btn btn-see" onclick="showScreen('view')">Modo espectador</button>
+  <button class="btn btn-juez" onclick="showScreen('identify')">He aprobado</button>
+</div>
+<div id="identify" class="screen">
+  <h1>¿Quién eres?</h1>
+  <p>Selecciona tu nombre de la lista de pendientes</p>
+  <div class="list" id="pendingList"></div>
+  <button class="btn btn-back" onclick="showScreen('welcome')">Volver</button>
+</div>
+<div id="choose" class="screen">
+  <h1 id="chooseName"></h1>
+  <p>Elige tu carrera</p>
+  <button class="btn btn-juez" onclick="choose('juez')">Juez</button>
+  <button class="btn btn-fiscal" onclick="choose('fiscal')">Fiscal</button>
+  <button class="btn btn-back" onclick="showScreen('identify')">Volver</button>
+</div>
+<div id="view" class="screen">
+  <h1>Estado de elecciones</h1>
+  <div class="summary" id="summary"></div>
+  <table><thead><tr><th>#</th><th>Tribunal</th><th>Nombre</th><th>Elección</th></tr></thead><tbody id="viewBody"></tbody></table>
+  <button class="btn btn-back" style="margin-top:16px" onclick="showScreen('welcome')">Volver</button>
+</div>
+<script>
+let PEOPLE = [];
+const JSON_URL = 'https://seguimientojudicatura.netlify.app/aptos.json';
+const API_URL = '/.netlify/functions/elecciones';
+
+function applyChoices(list){
+  PEOPLE.forEach(p => { delete p.carrera; });
+  (list || []).forEach(s => {
+    const p = PEOPLE.find(x => x.num === Number(s.num));
+    if(p && (s.carrera === 'juez' || s.carrera === 'fiscal')) p.carrera = s.carrera;
+  });
+  localStorage.setItem('elecciones', JSON.stringify(PEOPLE.filter(p => p.carrera).map(p => ({num:p.num, carrera:p.carrera}))));
+}
+
+async function syncChoices(){
+  try {
+    const r = await fetch(API_URL + '?t=' + Date.now());
+    if(r.ok){
+      const d = await r.json();
+      if(d && Array.isArray(d.items)){
+        applyChoices(d.items);
+        return;
+      }
+    }
+  } catch(e) {}
+  const saved = JSON.parse(localStorage.getItem('elecciones') || '[]');
+  saved.forEach(s => {
+    const p = PEOPLE.find(x => x.num === Number(s.num));
+    if(p && s.carrera) p.carrera = s.carrera;
+  });
+}
+
+async function loadData(){
+  try {
+    let res;
+    try {
+      res = await fetch(JSON_URL + '?t=' + Date.now());
+      if(!res.ok) throw new Error('status ' + res.status);
+    } catch(e) {
+      res = await fetch('/aptos.json?t=' + Date.now());
+    }
+    PEOPLE = await res.json();
+    await syncChoices();
+  } catch(e) {
+    console.error('Error loading data', e);
+    PEOPLE = [];
+  }
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  if(id==='identify'){
+    renderPending();
+    syncChoices().then(() => {
+      if(document.getElementById('identify').classList.contains('on')) renderPending();
+    });
+  }
+  if(id==='view'){
+    renderView();
+    syncChoices().then(() => {
+      if(document.getElementById('view').classList.contains('on')) renderView();
+    });
+  }
+}
+function anon(n){
+  if(!n) return '';
+  const parts = n.split(',');
+  const apes = (parts[0]||'').trim().split(/\s+/);
+  const nom = (parts[1]||'').trim();
+  const ini = apes.map(a => a[0].toUpperCase()+'.').join(' ');
+  const nomOk = nom.toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase());
+  return ini + (nomOk ? ', ' + nomOk : '');
+}
+function renderPending(){
+  const pending = PEOPLE.filter(p => !p.carrera);
+  document.getElementById('pendingList').innerHTML = pending.map(p => 
+    `<div class="person" onclick="selectPerson(${p.num})">
+      <div><div class="name">${anon(p.nombre)}</div><div class="trib">Tribunal ${p.trib}</div></div>
+    </div>`
+  ).join('') || '<p>Todos han elegido</p>';
+}
+let selected = null;
+function selectPerson(num){
+  selected = PEOPLE.find(p => p.num === num);
+  document.getElementById('chooseName').textContent = anon(selected.nombre);
+  showScreen('choose');
+}
+async function choose(carrera){
+  if(selected){
+    selected.carrera = carrera;
+    localStorage.setItem('elecciones', JSON.stringify(PEOPLE.filter(p => p.carrera).map(p => ({num:p.num, carrera:p.carrera}))));
+    try {
+      const r = await fetch(API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({num: selected.num, carrera})
+      });
+      if(r.ok){
+        const d = await r.json();
+        if(d && Array.isArray(d.items)) applyChoices(d.items);
+      }
+    } catch(e) {
+      console.error('Error saving choice', e);
+    }
+    alert('Elección guardada: ' + (carrera==='juez'?'Juez':'Fiscal'));
+    showScreen('view');
+  }
+}
+function renderView(){
+  const nJ = PEOPLE.filter(p => p.carrera==='juez').length;
+  const nF = PEOPLE.filter(p => p.carrera==='fiscal').length;
+  const nP = PEOPLE.length - nJ - nF;
+  document.getElementById('summary').innerHTML = `
+    <div class="juez-box">Juez: ${nJ}/120</div>
+    <div class="fiscal-box">Fiscal: ${nF}/80</div>
+    <div class="pend-box">Pendiente: ${nP}</div>`;
+  const sorted = [...PEOPLE].sort((a,b) => a.trib - b.trib || (b.suma||0) - (a.suma||0));
+  document.getElementById('viewBody').innerHTML = sorted.map((p,i) => 
+    `<tr class="${p.carrera||'pend'}"><td>${i+1}</td><td>T${p.trib}</td><td>${anon(p.nombre)}</td><td>${p.carrera?`<span class="badge ${p.carrera}">${p.carrera==='juez'?'JUEZ':'FISCAL'}</span>`:'—'}</td></tr>`
+  ).join('');
+}
+loadData().then(() => {
+  if(document.getElementById('identify').classList.contains('on')) renderPending();
+  if(document.getElementById('view').classList.contains('on')) renderView();
+});
+</script>
+</body>
+</html>
