@@ -69,7 +69,6 @@ const JSON_URL = 'https://seguimientojudicatura.netlify.app/aptos.json';
 const API_URL = '/.netlify/functions/elecciones';
 
 function applyChoices(list){
-  PEOPLE.forEach(p => { delete p.carrera; });
   (list || []).forEach(s => {
     const p = PEOPLE.find(x => x.num === Number(s.num));
     if(p && (s.carrera === 'juez' || s.carrera === 'fiscal')) p.carrera = s.carrera;
@@ -82,7 +81,7 @@ async function syncChoices(){
     const r = await fetch(API_URL + '?t=' + Date.now());
     if(r.ok){
       const d = await r.json();
-      if(d && Array.isArray(d.items)){
+      if(d && Array.isArray(d.items) && d.items.length){
         applyChoices(d.items);
         return;
       }
