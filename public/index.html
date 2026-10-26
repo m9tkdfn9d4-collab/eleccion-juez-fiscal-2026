@@ -68,6 +68,30 @@ let PEOPLE = [];
 const JSON_URL = 'https://raw.githubusercontent.com/m9tkdfn9d4-collab/seguimiento-juez-fiscal-2026/main/aptos.json';
 const API_URL = '/.netlify/functions/elecciones';
 
+function sortEscalafon(list){
+  const ranked = {};
+  [1,2,3,4,5,6].forEach(t => {
+    ranked[t] = list.filter(p => p.trib === t).slice().sort((a,b) => {
+      if(a.suma==null && b.suma==null) return (a.nombre||'').localeCompare(b.nombre||'','es');
+      if(a.suma==null) return 1;
+      if(b.suma==null) return -1;
+      return b.suma - a.suma || (a.nombre||'').localeCompare(b.nombre||'','es');
+    });
+  });
+  const maxPos = Math.max(0, ...[1,2,3,4,5,6].map(t => ranked[t].length));
+  const general = [];
+  for(let pos = 0; pos < maxPos; pos++){
+    const wave = [1,2,3,4,5,6].map(t => ranked[t][pos]).filter(Boolean).sort((a,b) => {
+      if(a.suma==null && b.suma==null) return a.trib - b.trib;
+      if(a.suma==null) return 1;
+      if(b.suma==null) return -1;
+      return b.suma - a.suma || a.trib - b.trib;
+    });
+    wave.forEach(r => general.push(r));
+  }
+  return general;
+}
+
 function applyChoices(list){
   (list || []).forEach(s => {
     const p = PEOPLE.find(x => x.num === Number(s.num));
@@ -142,7 +166,7 @@ function anon(n){
   return ini + (nomOk ? ', ' + nomOk : '');
 }
 function renderPending(){
-  const pending = PEOPLE.filter(p => !p.carrera);
+  const pending = sortEscalafon(PEOPLE).filter(p => !p.carrera);
   document.getElementById('pendingList').innerHTML = pending.map(p => 
     `<div class="person" onclick="selectPerson(${p.num})">
       <div><div class="name">${anon(p.nombre)}</div><div class="trib">Tribunal ${p.trib}</div></div>
@@ -184,7 +208,7 @@ function renderView(){
     <div class="juez-box">Juez: ${nJ}/120</div>
     <div class="fiscal-box">Fiscal: ${nF}/80</div>
     <div class="pend-box">Pendiente: ${nP}</div>`;
-  const sorted = [...PEOPLE].sort((a,b) => a.trib - b.trib || (b.suma||0) - (a.suma||0));
+  const sorted = sortEscalafon(PEOPLE);
   document.getElementById('viewBody').innerHTML = sorted.map((p,i) => 
     `<tr class="${p.carrera||'pend'}"><td>${i+1}</td><td>T${p.trib}</td><td>${anon(p.nombre)}</td><td>${p.carrera?`<span class="badge ${p.carrera}">${p.carrera==='juez'?'JUEZ':'FISCAL'}</span>`:'—'}</td></tr>`
   ).join('');
