@@ -65,7 +65,7 @@ tr.fiscal{background:#3d2e0f}
 </div>
 <script>
 let PEOPLE = [];
-const JSON_URL = 'https://seguimientojudicatura.netlify.app/aptos.json';
+const JSON_URL = 'https://raw.githubusercontent.com/m9tkdfn9d4-collab/seguimiento-juez-fiscal-2026/main/aptos.json';
 const API_URL = '/.netlify/functions/elecciones';
 
 function applyChoices(list){
@@ -101,7 +101,12 @@ async function loadData(){
       res = await fetch(JSON_URL + '?t=' + Date.now());
       if(!res.ok) throw new Error('status ' + res.status);
     } catch(e) {
-      res = await fetch('/aptos.json?t=' + Date.now());
+      try {
+        res = await fetch('https://seguimientojudicatura.netlify.app/aptos.json?t=' + Date.now());
+        if(!res.ok) throw new Error('status ' + res.status);
+      } catch(e2) {
+        res = await fetch('/aptos.json?t=' + Date.now());
+      }
     }
     PEOPLE = await res.json();
     await syncChoices();
