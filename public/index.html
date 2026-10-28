@@ -35,6 +35,7 @@ tr.fiscal{background:#3d2e0f}
 .badge{display:inline-block;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:700}
 .badge.juez{background:#3b82f6;color:#fff}
 .badge.fiscal{background:#fbbf24;color:#000}
+.badge.pend{background:#475569;color:#e2e8f0}
 </style>
 </head>
 <body>
@@ -46,7 +47,7 @@ tr.fiscal{background:#3d2e0f}
 </div>
 <div id="identify" class="screen">
   <h1>¿Quién eres?</h1>
-  <p>Selecciona tu nombre de la lista de pendientes</p>
+  <p>Selecciona tu nombre para elegir carrera o modificar tu elección</p>
   <div class="list" id="pendingList"></div>
   <button class="btn btn-back" onclick="showScreen('welcome')">Volver</button>
 </div>
@@ -169,12 +170,18 @@ function anon(n){
   return ini + (nomOk ? ', ' + nomOk : '');
 }
 function renderPending(){
-  const pending = sortEscalafon(PEOPLE).filter(p => !p.carrera);
-  document.getElementById('pendingList').innerHTML = pending.map(p => 
-    `<div class="person" onclick="selectPerson(${p.num})">
-      <div><div class="name">${anon(p.nombre)}</div><div class="trib">Tribunal ${p.trib} · ${fmt(p.suma)}</div></div>
-    </div>`
-  ).join('') || '<p>Todos han elegido</p>';
+  const all = sortEscalafon(PEOPLE);
+  document.getElementById('pendingList').innerHTML = all.map((p, i) => {
+    const badge = p.carrera === 'juez'
+      ? '<span class="badge juez">JUEZ</span>'
+      : p.carrera === 'fiscal'
+      ? '<span class="badge fiscal">FISCAL</span>'
+      : '<span class="badge pend">PENDIENTE</span>';
+    return `<div class="person" onclick="selectPerson(${p.num})">
+      <div><div class="name">${i+1}. ${anon(p.nombre)}</div><div class="trib">Tribunal ${p.trib} · ${fmt(p.suma)}</div></div>
+      ${badge}
+    </div>`;
+  }).join('');
 }
 let selected = null;
 function selectPerson(num){
