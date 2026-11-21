@@ -236,8 +236,9 @@ function sortBySuma(list){
   });
 }
 function renderGrouped(){
-  const jueces = sortBySuma(PEOPLE.filter(p => p.carrera==='juez'));
-  const fiscales = sortBySuma(PEOPLE.filter(p => p.carrera==='fiscal'));
+  const general = sortEscalafon(PEOPLE);
+  const jueces = general.filter(p => p.carrera==='juez');
+  const fiscales = general.filter(p => p.carrera==='fiscal');
   let html = `<div class="group-header group-juez">Jueces (${jueces.length}/120)</div><div class="group-list">`;
   html += jueces.map(p => `<div class="group-item"><span>${anon(p.nombre)}</span><span class="meta">T${p.trib} · ${fmt(p.suma)}</span></div>`).join('') || '<p style="color:#64748b">Nadie ha elegido juez aún</p>';
   html += `</div><div class="group-header group-fiscal">Fiscales (${fiscales.length}/80)</div><div class="group-list">`;
